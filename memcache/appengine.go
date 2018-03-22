@@ -48,6 +48,11 @@ func (c *Cache) Set(key string, resp []byte) {
 	}
 }
 
+// SetEx same as Set, ttl not support
+func (c *Cache) SetEx(key string, resp []byte, ttl int64) {
+	c.Set(key, resp)
+}
+
 // Delete removes the response with key from the cache.
 func (c *Cache) Delete(key string) {
 	if err := memcache.Delete(c.Context, cacheKey(key)); err != nil {

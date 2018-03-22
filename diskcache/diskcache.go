@@ -7,8 +7,9 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/hex"
-	"github.com/peterbourgon/diskv"
 	"io"
+
+	"github.com/peterbourgon/diskv"
 )
 
 // Cache is an implementation of httpcache.Cache that supplements the in-memory map with persistent storage
@@ -30,6 +31,11 @@ func (c *Cache) Get(key string) (resp []byte, ok bool) {
 func (c *Cache) Set(key string, resp []byte) {
 	key = keyToFilename(key)
 	c.d.WriteStream(key, bytes.NewReader(resp), true)
+}
+
+// SetEx same as Set, ttl not support
+func (c *Cache) SetEx(key string, resp []byte, ttl int64) {
+	c.Set(key, resp)
 }
 
 // Delete removes the response with key from the cache

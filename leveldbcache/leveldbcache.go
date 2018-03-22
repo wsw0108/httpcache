@@ -26,6 +26,11 @@ func (c *Cache) Set(key string, resp []byte) {
 	c.db.Put([]byte(key), resp, nil)
 }
 
+// SetEx same as Set, ttl not support
+func (c *Cache) SetEx(key string, resp []byte, ttl int64) {
+	c.Set(key, resp)
+}
+
 // Delete removes the response with key from the cache
 func (c *Cache) Delete(key string) {
 	c.db.Delete([]byte(key), nil)

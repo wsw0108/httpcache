@@ -42,6 +42,11 @@ func (c *Cache) Set(key string, resp []byte) {
 	c.Client.Set(item)
 }
 
+// SetEx same as Set, ttl not support
+func (c *Cache) SetEx(key string, resp []byte, ttl int64) {
+	c.Set(key, resp)
+}
+
 // Delete removes the response with key from the cache.
 func (c *Cache) Delete(key string) {
 	c.Client.Delete(cacheKey(key))

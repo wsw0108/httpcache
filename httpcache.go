@@ -34,6 +34,8 @@ type Cache interface {
 	Get(key string) (responseBytes []byte, ok bool)
 	// Set stores the []byte representation of a response against a key
 	Set(key string, responseBytes []byte)
+	// SetEx stores the []byte representation of a response against a key, with ttl
+	SetEx(key string, responseBytes []byte, duration int64)
 	// Delete removes the value associated with the key
 	Delete(key string)
 }
@@ -80,6 +82,11 @@ func (c *MemoryCache) Set(key string, resp []byte) {
 	c.mu.Unlock()
 }
 
+// SetEx same as Set, ttl not support
+func (c *MemoryCache) SetEx(key string, resp []byte, ttl int64) {
+	c.Set(key, resp)
+}
+
 // Delete removes key from the cache
 func (c *MemoryCache) Delete(key string) {
 	c.mu.Lock()
@@ -103,6 +110,8 @@ type Transport struct {
 	Cache     Cache
 	// If true, responses returned from the cache will be given an extra header, X-From-Cache
 	MarkCachedResponses bool
+	ForceCache          func(resp *http.Response, req *http.Request) bool
+	ForceCacheTTL       int64
 }
 
 // NewTransport returns a new Transport with the
@@ -155,6 +164,10 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 	if cacheable && cachedResp != nil && err == nil {
 		if t.MarkCachedResponses {
 			cachedResp.Header.Set(XFromCache, "1")
+		}
+
+		if t.ForceCache != nil && t.ForceCache(cachedResp, req) {
+			return cachedResp, nil
 		}
 
 		if varyMatches(cachedResp, req) {
@@ -237,14 +250,22 @@ func (t *Transport) RoundTrip(req *http.Request) (resp *http.Response, err error
 					resp.Body = ioutil.NopCloser(r)
 					respBytes, err := httputil.DumpResponse(&resp, true)
 					if err == nil {
-						t.Cache.Set(cacheKey, respBytes)
+						if t.ForceCache != nil && t.ForceCache(&resp, req) {
+							t.Cache.SetEx(cacheKey, respBytes, t.ForceCacheTTL)
+						} else {
+							t.Cache.Set(cacheKey, respBytes)
+						}
 					}
 				},
 			}
 		default:
 			respBytes, err := httputil.DumpResponse(resp, true)
 			if err == nil {
-				t.Cache.Set(cacheKey, respBytes)
+				if t.ForceCache != nil && t.ForceCache(resp, req) {
+					t.Cache.SetEx(cacheKey, respBytes, t.ForceCacheTTL)
+				} else {
+					t.Cache.Set(cacheKey, respBytes)
+				}
 			}
 		}
 	} else {
